@@ -1,0 +1,18 @@
+# Virtual environments
+venv/
+venc/
+
+# Data (do not commit images)
+data/images/
+
+# Output files
+visual_check.png
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
+
