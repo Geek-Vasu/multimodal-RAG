@@ -1,18 +1,31 @@
-# Virtual environments
+.env
+
+
 venv/
 venc/
 
-# Data (do not commit images)
+
 data/images/
 
-# Output files
+
 visual_check.png
 
-# Python cache
+
 __pycache__/
 *.pyc
 
-# OS files
+
 .DS_Store
 Thumbs.db
 
+
+.cache/
+.huggingface/
+.hf_cache/
+models/
+
+#
+*.index
+*.faiss
+*.npy
+*.pkl
