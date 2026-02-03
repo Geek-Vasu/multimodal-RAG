@@ -1,13 +1,22 @@
+import os
+os.environ["CURL_CA_BUNDLE"] = ""
+os.environ["REQUESTS_CA_BUNDLE"] = ""
+
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import pandas as pd
-import os
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(BASE_DIR, "data", "product_metadata.csv")
 
-model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder="D:/hf_cache")
+model = SentenceTransformer(
+    "all-MiniLM-L6-v2",
+    cache_folder="D:/hf_cache",
+    local_files_only=True
+)
+
 
 df = pd.read_csv(CSV_PATH)
 

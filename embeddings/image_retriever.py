@@ -30,11 +30,13 @@ def search_similar(image: Image.Image, top_k: int = 5):
     for idx, score in zip(indices[0], scores[0]):
         row = metadata.iloc[idx]
         results.append({
-            "filename": row["filename"],
-            "brand": row["brand"],
-            "category": row["category"],
-            "style": row["style_hint"],
-            "score": float(score)
-        })
+    "filename": row["filename"],
+    "brand": row["brand"],
+    "category": row["category"],
+    "material": row["material"],          
+    "style_hint": row["style_hint"],       
+    "score": float(score)
+})
+
 
     return results

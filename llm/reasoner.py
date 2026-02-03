@@ -1,49 +1,55 @@
 from dotenv import load_dotenv
-import os
+import json
 
 load_dotenv()
 
 from openai import OpenAI
 import os
 
-client = OpenAI(api_key=os.getenv(""))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def reason_over_products(query, retrieved_products):
-    """
-    query: user intent (string)
-    retrieved_products: list of dicts with metadata
-    """
+    context_lines = []
 
-    context = "\n".join([
-        f"- Brand: {p['brand']}, Category: {p['category']}, "
-        f"Material: {p['material']}, Style: {p['style_hint']}"
-        for p in retrieved_products
-    ])
+    for p in retrieved_products:
+        context_lines.append(
+            f"- filename: {p.get('filename','unknown')}, "
+            f"brand: {p.get('brand','unknown')}, "
+            f"category: {p.get('category','unknown')}, "
+            f"material: {p.get('material','unknown')}, "
+            f"style: {p.get('style_hint','unknown')}, "
+            f"score: {p.get('score', 0.0)}"
+        )
+
+    context = "\n".join(context_lines)
+
 
     prompt = f"""
-You are an AI product analyst.
+You are a strict JSON-only reasoning engine.
 
-User request:
+User intent:
 {query}
 
-Retrieved product candidates:
+Retrieved candidates:
 {context}
 
-Your tasks:
-1. Decide which products best satisfy the request
-2. Explain WHY they match
-3. Reject weak matches explicitly
+Return ONLY valid JSON with this schema:
+{{
+  "recommended": [{{"filename": str, "reason": str, "confidence": float}}],
+  "rejected": [{{"filename": str, "reason": str}}],
+  "summary": str
+}}
 
-Be objective. Do not hallucinate missing facts.
+Rules:
+- confidence must be between 0 and 1
+- recommend only strong matches
+- reject weak or ambiguous items
 """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You reason strictly from provided context."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.4
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
     )
 
-    return response.choices[0].message.content
+    return json.loads(response.choices[0].message.content)

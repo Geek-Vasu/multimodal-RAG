@@ -5,6 +5,11 @@ import torch
 import clip
 import faiss
 from PIL import Image
+from embeddings.image_retriever import search_similar
+
+def search_by_image(image, top_k=5):
+    return search_similar(image, top_k)
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
@@ -64,11 +69,4 @@ for i in idxs[0]:
         "style_hint": row["style_hint"]
     })
 
-answer = reason_over_products(
-    query="Find casual sneakers suitable for daily wear",
-    retrieved_products=retrieved
-)
-
-print("\nLLM Reasoning:\n")
-print(answer)
 
