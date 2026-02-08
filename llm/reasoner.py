@@ -1,49 +1,83 @@
 from dotenv import load_dotenv
-import json
-
 load_dotenv()
 
-from openai import OpenAI
 import os
+import json
+import base64
+from io import BytesIO
+from pathlib import Path
+from PIL import Image
+from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def reason_over_products(query, retrieved_products):
-    context_lines = []
+# ------------------------------------------------------------------
+# CONFIG — adjust only if your image folder lives elsewhere
+# ------------------------------------------------------------------
+IMAGE_DIR = Path("data/images")  # <-- MUST contain sneaker images
 
-    for p in retrieved_products:
+
+def image_to_base64_from_filename(filename: str) -> str:
+    """
+    Load image from disk using filename and convert to base64.
+    Frontend-safe. No URLs. No guessing.
+    """
+    img_path = IMAGE_DIR / filename
+
+    if not img_path.exists():
+        return ""
+
+    img = Image.open(img_path).convert("RGB")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+def reason_over_products(query: str, retrieved_products: list[dict]):
+    """
+    LLM ONLY explains.
+    Retrieval decides relevance & confidence.
+    """
+
+    # --------------------------------------------------------------
+    # STEP 1 — STRICT retrieval grounding (REAL scores only)
+    # --------------------------------------------------------------
+    # STEP 1: ALWAYS take top 5 retrieved products
+    strong = sorted(
+     retrieved_products,
+     key=lambda x: x.get("final_score", x.get("score", 0)),
+     reverse=True
+       )[:5]
+    
+    
+
+    # --------------------------------------------------------------
+    # STEP 2 — Build explanation-only context (NO scores)
+    # --------------------------------------------------------------
+    context_lines = []
+    for p in strong:
         context_lines.append(
-            f"- filename: {p.get('filename','unknown')}, "
-            f"brand: {p.get('brand','unknown')}, "
-            f"category: {p.get('category','unknown')}, "
-            f"material: {p.get('material','unknown')}, "
-            f"style: {p.get('style_hint','unknown')}, "
-            f"score: {p.get('score', 0.0)}"
+            f"- Brand: {p.get('brand','unknown')}, "
+            f"Category: {p.get('category','unknown')}, "
+            f"Style: {p.get('style_hint','unknown')}, "
+            f"Material: {p.get('material','unknown')}"
         )
 
-    context = "\n".join(context_lines)
-
+    context = "\n".join(context_lines) or "No strong matches found."
 
     prompt = f"""
-You are a strict JSON-only reasoning engine.
+You are a fashion expert.
 
 User intent:
 {query}
 
-Retrieved candidates:
+High-confidence retrieved products:
 {context}
 
-Return ONLY valid JSON with this schema:
-{{
-  "recommended": [{{"filename": str, "reason": str, "confidence": float}}],
-  "rejected": [{{"filename": str, "reason": str}}],
-  "summary": str
-}}
-
-Rules:
-- confidence must be between 0 and 1
-- recommend only strong matches
-- reject weak or ambiguous items
+Explain WHY these products are good matches.
+Do NOT invent products.
+Do NOT mention scores.
+Return a short professional explanation.
 """
 
     response = client.chat.completions.create(
@@ -52,4 +86,20 @@ Rules:
         temperature=0.2
     )
 
-    return json.loads(response.choices[0].message.content)
+    explanation = response.choices[0].message.content.strip()
+
+    # --------------------------------------------------------------
+    # FINAL OUTPUT — fully grounded, frontend-ready
+    # --------------------------------------------------------------
+    return {
+        "summary": explanation,
+        "recommended": [
+            {
+                "filename": p["filename"],
+                "brand": p.get("brand", "unknown"),
+                "confidence": round(p.get("final_score", p.get("score", 0)), 2),  # ← REAL retrieval score
+               # <-- already frontend-safe URL),
+            }
+            for p in strong
+        ]
+    }

@@ -9,7 +9,7 @@ from llm.reasoner import reason_over_products
 from agent.outfit_planner import outfit_planner
 
 
-# ---------------- STATE ---------------- #
+# ---------------- STATE ---------------- # 
 
 class AgentState(TypedDict):
     input_type: str
@@ -64,6 +64,9 @@ def outfit_planner_node(state: AgentState):
 
 
 # ---------------- MERGE ---------------- #
+from pathlib import Path
+
+IMAGE_DIR = Path("data/images")  # adjust if needed
 
 def merge_results_node(state: AgentState):
     merged = {}
@@ -81,16 +84,20 @@ def merge_results_node(state: AgentState):
                 merged[key]["final_score"] = 0.0
                 merged[key]["sources"] = []
 
+                # ✅ REAL FILE PATH
+                merged[key]["image_path"] = str(IMAGE_DIR / r["filename"])
+
             merged[key]["final_score"] += weight * r.get("score", 1.0)
             merged[key]["sources"].append(source)
 
     state["merged_results"] = sorted(
         merged.values(),
         key=lambda x: x["final_score"],
-        reverse=True,
-    )
+        reverse=True
+    )[:5]
 
     return state
+
 
 
 # ---------------- REASONING ---------------- #
@@ -104,11 +111,13 @@ def reasoning_node(state: AgentState):
 
 
 def confidence_check(state: AgentState):
-    strong = [
-        r for r in state["llm_output"]["recommended"]
-        if r.get("confidence", 0) >= 0.7
-    ]
-    return "accept" if strong else "retry"
+    """
+    Accept if retrieval produced any strong results.
+    LLM does NOT decide confidence.
+    """
+    if state["merged_results"]:
+        return "accept"
+    return "retry"
 
 
 def relaxed_reasoning_node(state: AgentState):

@@ -3,6 +3,9 @@
 
 venv/
 venc/
+Lib/
+Scripts/
+pyvenv.cfg
 
 
 data/images/

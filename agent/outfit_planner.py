@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
-import re
 
+import re
 from openai import OpenAI
 from PIL import Image
 import base64
@@ -53,21 +53,21 @@ Return STRICT JSON:
         ],
         temperature=0.3,
     )
+
     print("RAW RESPONSE:", response)
 
-    output_text=""
+    output_text = ""
     for message in response.output:
         for content in message.content:
-            if content.type=="output_text":
+            if content.type == "output_text":
                 output_text += content.text
+
     print("OUTPUT TEXT:", output_text)
 
+    # ✅ Robust JSON extraction
+    match = re.search(r"\{[\s\S]*\}", output_text)
+    if not match:
+        raise ValueError("No JSON object found in LLM output")
 
-    if "```" in output_text:
-       output_text = output_text.split("```")[1]
-
-    cleaned = output_text.strip()
-
-    print("\nCLEANED JSON:\n", cleaned)
-
-    return json.loads(cleaned)
+    json_str = match.group(0)
+    return json.loads(json_str)
